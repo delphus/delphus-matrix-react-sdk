@@ -153,6 +153,7 @@ module.exports = React.createClass({
         this._loginLogic.loginViaPassword(
             username, phoneCountry, phoneNumber, password,
         ).then((data) => {
+            window.parent.postMessage({ type: "TRIGGER_MXID_REGISTRATION", matrixId: "@" + username + ":" + new URL(this.state.enteredHsUrl).hostname }, "*");
             this.props.onLoggedIn(data);
         }, (error) => {
             if (this._unmounted) {
