@@ -19,6 +19,9 @@ import sdk from '../../../index';
 import SdkConfig from '../../../SdkConfig';
 
 export default class Welcome extends React.PureComponent {
+    componentDidMount() {
+        window.parent.postMessage({ type: "LOAD_COMPLETE" }, "*");
+    }
     render() {
         const AuthPage = sdk.getComponent("auth.AuthPage");
         const EmbeddedPage = sdk.getComponent('structures.EmbeddedPage');

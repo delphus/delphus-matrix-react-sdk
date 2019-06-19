@@ -94,6 +94,7 @@ const LoggedInView = React.createClass({
     },
 
     componentDidMount: function() {
+        window.parent.postMessage({ type: "LOAD_COMPLETE", matrixId: this._matrixClient.credentials.userId }, "*");
         this.resizer = this._createResizer();
         this.resizer.attach();
         this._loadResizerPreferences();
