@@ -48,6 +48,10 @@ class PasswordLogin extends React.Component {
         disableSubmit: false,
     }
 
+    componentDidMount() {
+        window.parent.postMessage({ type: "LOAD_COMPLETE" }, "*");
+    }
+
     constructor(props) {
         super(props);
         this.state = {
