@@ -8,7 +8,7 @@ $font-family: 'Nunito', Arial, Helvetica, Sans-Serif;
 
 // unified palette
 // try to use these colors when possible
-$accent-color: #03b381;
+$accent-color: #00aeef;
 $notice-primary-color: #ff4b55;
 $notice-secondary-color: #61708b;
 $header-panel-bg-color: #f3f8fd;
@@ -25,8 +25,8 @@ $focus-bg-color: #dddddd;
 
 // button UI (white-on-green in light skin)
 $accent-fg-color: #ffffff;
-$accent-color-50pct: #92caad;
-$accent-color-alt: #238CF5;
+$accent-color-50pct: #0090ff;
+$accent-color-alt: #0090ff;
 
 $selection-fg-color: $primary-bg-color;
 
@@ -36,7 +36,7 @@ $focus-brightness: 105%;
 $warning-color: $notice-primary-color;
 // background colour for warnings
 $warning-bg-color: #DF2A8B;
-$info-bg-color: #2A9EDF;
+$info-bg-color: #2e2f32;
 $mention-user-pill-bg-color: $warning-color;
 $other-user-pill-bg-color: rgba(0, 0, 0, 0.1);
 
@@ -54,7 +54,7 @@ $preview-bar-bg-color: #f7f7f7;
 $secondary-accent-color: #f2f5f8;
 $tertiary-accent-color: #d3efe1;
 
-$tagpanel-bg-color: #27303a;
+$tagpanel-bg-color: #0090ff;
 
 // used by RoomDirectory permissions
 $plinth-bg-color: $secondary-accent-color;
@@ -137,7 +137,7 @@ $settings-profile-overlay-placeholder-fg-color: #2e2f32;
 $settings-subsection-fg-color: #61708b;
 
 $voip-decline-color: #f48080;
-$voip-accept-color: #80f480;
+$voip-accept-color: #00aeef;
 
 $rte-bg-color: #e9e9e9;
 $rte-code-bg-color: rgba(0, 0, 0, 0.04);
@@ -148,11 +148,11 @@ $topleftmenu-color: #212121;
 $roomheader-color: #45474a;
 $roomheader-addroom-bg-color: #91A1C0;
 $roomheader-addroom-fg-color: $accent-fg-color;
-$tagpanel-button-color: #91A1C0;
-$roomheader-button-color: #91A1C0;
-$groupheader-button-color: #91A1C0;
-$rightpanel-button-color: #91A1C0;
-$composer-button-color: #91A1C0;
+$tagpanel-button-color: #f8f8ff;
+$roomheader-button-color: #f8f8ff;
+$groupheader-button-color: #f8f8ff;
+$rightpanel-button-color: #f8f8ff;
+$composer-button-color: #f8f8ff;
 $roomtopic-color: #9e9e9e;
 $eventtile-meta-color: $roomtopic-color;
 
@@ -167,14 +167,14 @@ $roomtile-notified-color: #212121;
 $roomtile-selected-bg-color: #fff;
 $roomtile-focused-bg-color: #fff;
 
-$username-variant1-color: #368bd6;
-$username-variant2-color: #ac3ba8;
-$username-variant3-color: #03b381;
-$username-variant4-color: #e64f7a;
-$username-variant5-color: #ff812d;
-$username-variant6-color: #2dc2c5;
-$username-variant7-color: #5c56f5;
-$username-variant8-color: #74d12c;
+$username-variant1-color: #00aeef;
+$username-variant2-color: #00aeef;
+$username-variant3-color: #00aeef;
+$username-variant4-color: #00aeef;
+$username-variant5-color: #00aeef;
+$username-variant6-color: #00aeef;
+$username-variant7-color: #00aeef;
+$username-variant8-color: #00aeef;
 
 $roomtile-transparent-focused-color: rgba(0, 0, 0, 0.1);
 
@@ -192,7 +192,7 @@ $widget-menu-bar-bg-color: $secondary-accent-color;
 // ********************
 
 // event tile lifecycle
-$event-encrypting-color: #abddbc;
+$event-encrypting-color: #00aeef;
 $event-sending-color: #ddd;
 $event-notsent-color: #f44;
 
@@ -206,8 +206,8 @@ $event-timestamp-color: #acacac;
 $copy-button-url: "$(res)/img/icon_copy_message.svg";
 
 // e2e
-$e2e-verified-color: #76cfa5; // N.B. *NOT* the same as $accent-color
-$e2e-unverified-color: #e8bf37;
+$e2e-verified-color: #00aeef; // N.B. *NOT* the same as $accent-color
+$e2e-unverified-color: #0090ff;
 $e2e-warning-color: #ba6363;
 
 /*** ImageView ***/
