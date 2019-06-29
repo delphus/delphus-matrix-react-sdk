@@ -26,6 +26,7 @@ import { _t } from '../../../languageHandler';
 import SdkConfig from '../../../SdkConfig';
 import { SAFE_LOCALPART_REGEX } from '../../../Registration';
 import withValidation from '../elements/Validation';
+import {ValidatedServerConfig} from "../../../utils/AutoDiscoveryUtils";
 
 const FIELD_EMAIL = 'field_email';
 const FIELD_PHONE_NUMBER = 'field_phone_number';
@@ -51,16 +52,14 @@ module.exports = React.createClass({
         onRegisterClick: PropTypes.func.isRequired, // onRegisterClick(Object) => ?Promise
         onEditServerDetailsClick: PropTypes.func,
         flows: PropTypes.arrayOf(PropTypes.object).isRequired,
-        // This is optional and only set if we used a server name to determine
-        // the HS URL via `.well-known` discovery. The server name is used
-        // instead of the HS URL when talking about "your account".
-        hsName: PropTypes.string,
-        hsUrl: PropTypes.string,
+        serverConfig: PropTypes.instanceOf(ValidatedServerConfig).isRequired,
+        canSubmit: PropTypes.bool,
     },
 
     getDefaultProps: function() {
         return {
             onValidationChange: console.error,
+            canSubmit: true,
         };
     },
 
@@ -76,11 +75,14 @@ module.exports = React.createClass({
             password: "",
             passwordConfirm: "",
             passwordComplexity: null,
+            passwordSafe: false,
         };
     },
 
     onSubmit: async function(ev) {
         ev.preventDefault();
+
+        if (!this.props.canSubmit) return;
 
         const allFieldsValid = await this.verifyFieldsBeforeSubmit();
         if (!allFieldsValid) {
@@ -274,12 +276,23 @@ module.exports = React.createClass({
                     }
                     const { scorePassword } = await import('../../../utils/PasswordScorer');
                     const complexity = scorePassword(value);
+                    const safe = complexity.score >= PASSWORD_MIN_SCORE;
+                    const allowUnsafe = SdkConfig.get()["dangerously_allow_unsafe_and_insecure_passwords"];
                     this.setState({
                         passwordComplexity: complexity,
+                        passwordSafe: safe,
                     });
-                    return complexity.score >= PASSWORD_MIN_SCORE;
+                    return allowUnsafe || safe;
                 },
-                valid: () => _t("Nice, strong password!"),
+                valid: function() {
+                    // Unsafe passwords that are valid are only possible through a
+                    // configuration flag. We'll print some helper text to signal
+                    // to the user that their password is allowed, but unsafe.
+                    if (!this.state.passwordSafe) {
+                        return _t("Password is allowed, but unsafe");
+                    }
+                    return _t("Nice, strong password!");
+                },
                 invalid: function() {
                     const complexity = this.state.passwordComplexity;
                     if (!complexity) {
@@ -371,7 +384,7 @@ module.exports = React.createClass({
     },
 
     validateUsernameRules: withValidation({
-        description: () => _t("Use letters, numbers, dashes and underscores only"),
+        description: () => _t("Use lowercase letters, numbers, dashes and underscores only"),
         rules: [
             {
                 key: "required",
@@ -503,20 +516,22 @@ module.exports = React.createClass({
     },
 
     render: function() {
-        let yourMatrixAccountText = _t('Create your Matrix account');
-        if (this.props.hsName) {
-            yourMatrixAccountText = _t('Create your Matrix account on %(serverName)s', {
-                serverName: this.props.hsName,
+        let yourMatrixAccountText = _t('Create your Matrix account on %(serverName)s', {
+            serverName: this.props.serverConfig.hsName,
+        });
+        if (this.props.serverConfig.hsNameIsDifferent) {
+            const TextWithTooltip = sdk.getComponent("elements.TextWithTooltip");
+
+            yourMatrixAccountText = _t('Create your Matrix account on <underlinedServerName />', {}, {
+                'underlinedServerName': () => {
+                    return <TextWithTooltip
+                        class="mx_Login_underlinedServerName"
+                        tooltip={this.props.serverConfig.hsUrl}
+                    >
+                        {this.props.serverConfig.hsName}
+                    </TextWithTooltip>;
+                },
             });
-        } else {
-            try {
-                const parsedHsUrl = new URL(this.props.hsUrl);
-                yourMatrixAccountText = _t('Create your Matrix account on %(serverName)s', {
-                    serverName: parsedHsUrl.hostname,
-                });
-            } catch (e) {
-                // ignore
-            }
         }
 
         let editLink = null;
@@ -529,7 +544,7 @@ module.exports = React.createClass({
         }
 
         const registerButton = (
-            <input className="mx_Login_submit" type="submit" value={_t("Register")} />
+            <input className="mx_Login_submit" type="submit" value={_t("Register")} disabled={!this.props.canSubmit} />
         );
 
         return (

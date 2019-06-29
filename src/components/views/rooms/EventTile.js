@@ -159,6 +159,12 @@ module.exports = withMatrixClient(React.createClass({
 
         // show twelve hour timestamps
         isTwelveHour: PropTypes.bool,
+
+        // helper function to access relations for this event
+        getRelationsForEvent: PropTypes.func,
+
+        // whether to show reactions for this event
+        showReactions: PropTypes.bool,
     },
 
     getDefaultProps: function() {
@@ -179,6 +185,8 @@ module.exports = withMatrixClient(React.createClass({
             verified: null,
             // Whether onRequestKeysClick has been called since mounting.
             previouslyRequestedKeys: false,
+            // The Relations model from the JS SDK for reactions to `mxEvent`
+            reactions: this.getReactions(),
         };
     },
 
@@ -190,9 +198,12 @@ module.exports = withMatrixClient(React.createClass({
 
     componentDidMount: function() {
         this._suppressReadReceiptAnimation = false;
-        this.props.matrixClient.on("deviceVerificationChanged",
-                                 this.onDeviceVerificationChanged);
+        const client = this.props.matrixClient;
+        client.on("deviceVerificationChanged", this.onDeviceVerificationChanged);
         this.props.mxEvent.on("Event.decrypted", this._onDecrypted);
+        if (this.props.showReactions && SettingsStore.isFeatureEnabled("feature_reactions")) {
+            this.props.mxEvent.on("Event.relationsCreated", this._onReactionsCreated);
+        }
     },
 
     componentWillReceiveProps: function(nextProps) {
@@ -215,6 +226,9 @@ module.exports = withMatrixClient(React.createClass({
         const client = this.props.matrixClient;
         client.removeListener("deviceVerificationChanged", this.onDeviceVerificationChanged);
         this.props.mxEvent.removeListener("Event.decrypted", this._onDecrypted);
+        if (this.props.showReactions && SettingsStore.isFeatureEnabled("feature_reactions")) {
+            this.props.mxEvent.removeListener("Event.relationsCreated", this._onReactionsCreated);
+        }
     },
 
     /** called when the event is decrypted after we show it.
@@ -472,6 +486,28 @@ module.exports = withMatrixClient(React.createClass({
         return this.refs.replyThread;
     },
 
+    getReactions() {
+        if (
+            !this.props.showReactions ||
+            !this.props.getRelationsForEvent ||
+            !SettingsStore.isFeatureEnabled("feature_reactions")
+        ) {
+            return null;
+        }
+        const eventId = this.props.mxEvent.getId();
+        return this.props.getRelationsForEvent(eventId, "m.annotation", "m.reaction");
+    },
+
+    _onReactionsCreated(relationType, eventType) {
+        if (relationType !== "m.annotation" || eventType !== "m.reaction") {
+            return;
+        }
+        this.props.mxEvent.removeListener("Event.relationsCreated", this._onReactionsCreated);
+        this.setState({
+            reactions: this.getReactions(),
+        });
+    },
+
     render: function() {
         const MessageTimestamp = sdk.getComponent('messages.MessageTimestamp');
         const SenderProfile = sdk.getComponent('messages.SenderProfile');
@@ -484,11 +520,21 @@ module.exports = withMatrixClient(React.createClass({
         const eventType = this.props.mxEvent.getType();
 
         // Info messages are basically information about commands processed on a room
-        const isInfoMessage = (
+        let isInfoMessage = (
             eventType !== 'm.room.message' && eventType !== 'm.sticker' && eventType != 'm.room.create'
         );
 
-        const tileHandler = getHandlerTile(this.props.mxEvent);
+        let tileHandler = getHandlerTile(this.props.mxEvent);
+        // If we're showing hidden events in the timeline, we should use the
+        // source tile when there's no regular tile for an event and also for
+        // replace relations (which otherwise would display as a confusing
+        // duplicate of the thing they are replacing).
+        const useSource = !tileHandler || this.props.mxEvent.isRelation("m.replace");
+        if (useSource && SettingsStore.getValue("showHiddenEventsInTimeline")) {
+            tileHandler = "messages.ViewSourceEvent";
+            // Reuse info message avatar and sender profile styling
+            isInfoMessage = true;
+        }
         // This shouldn't happen: the caller should check we support this type
         // before trying to instantiate us
         if (!tileHandler) {
@@ -506,12 +552,14 @@ module.exports = withMatrixClient(React.createClass({
         const isRedacted = isMessageEvent(this.props.mxEvent) && this.props.isRedacted;
         const isEncryptionFailure = this.props.mxEvent.isDecryptionFailure();
 
+        const isEditing = !!this.props.editState;
         const classes = classNames({
             mx_EventTile: true,
+            mx_EventTile_isEditing: isEditing,
             mx_EventTile_info: isInfoMessage,
             mx_EventTile_12hr: this.props.isTwelveHour,
             mx_EventTile_encrypting: this.props.eventSendStatus === 'encrypting',
-            mx_EventTile_sending: isSending,
+            mx_EventTile_sending: !isEditing && isSending,
             mx_EventTile_notSent: this.props.eventSendStatus === 'not_sent',
             mx_EventTile_highlight: this.props.tileShape === 'notif' ? false : this.shouldHighlight(),
             mx_EventTile_selected: this.props.isSelectedEvent,
@@ -585,13 +633,14 @@ module.exports = withMatrixClient(React.createClass({
         }
 
         const MessageActionBar = sdk.getComponent('messages.MessageActionBar');
-        const actionBar = <MessageActionBar
+        const actionBar = !isEditing ? <MessageActionBar
             mxEvent={this.props.mxEvent}
+            reactions={this.state.reactions}
             permalinkCreator={this.props.permalinkCreator}
             getTile={this.getTile}
             getReplyThread={this.getReplyThread}
             onFocusChange={this.onActionBarFocusChange}
-        />;
+        /> : undefined;
 
         const timestamp = this.props.mxEvent.getTs() ?
             <MessageTimestamp showTwelveHour={this.props.isTwelveHour} ts={this.props.mxEvent.getTs()} /> : null;
@@ -630,16 +679,24 @@ module.exports = withMatrixClient(React.createClass({
                 <ToolTipButton helpText={keyRequestHelpText} />
             </div> : null;
 
+        let reactionsRow;
+        if (SettingsStore.isFeatureEnabled("feature_reactions")) {
+            const ReactionsRow = sdk.getComponent('messages.ReactionsRow');
+            reactionsRow = <ReactionsRow
+                mxEvent={this.props.mxEvent}
+                reactions={this.state.reactions}
+            />;
+        }
+
         switch (this.props.tileShape) {
             case 'notif': {
-                const EmojiText = sdk.getComponent('elements.EmojiText');
                 const room = this.props.matrixClient.getRoom(this.props.mxEvent.getRoomId());
                 return (
                     <div className={classes}>
                         <div className="mx_EventTile_roomName">
-                            <EmojiText element="a" href={permalink} onClick={this.onPermalinkClicked}>
+                            <a href={permalink} onClick={this.onPermalinkClicked}>
                                 { room ? room.name : '' }
-                            </EmojiText>
+                            </a>
                         </div>
                         <div className="mx_EventTile_senderDetails">
                             { avatar }
@@ -737,15 +794,18 @@ module.exports = withMatrixClient(React.createClass({
                             { thread }
                             <EventTileType ref="tile"
                                            mxEvent={this.props.mxEvent}
+                                           replacingEventId={this.props.replacingEventId}
+                                           editState={this.props.editState}
                                            highlights={this.props.highlights}
                                            highlightLink={this.props.highlightLink}
                                            showUrlPreview={this.props.showUrlPreview}
                                            onHeightChanged={this.props.onHeightChanged} />
                             { keyRequestInfo }
+                            { reactionsRow }
                             { actionBar }
                         </div>
                         {
-                            // The avatar goes after the event tile as it's absolutly positioned to be over the
+                            // The avatar goes after the event tile as it's absolutely positioned to be over the
                             // event tile line, so needs to be later in the DOM so it appears on top (this avoids
                             // the need for further z-indexing chaos)
                         }
@@ -766,6 +826,9 @@ function isMessageEvent(ev) {
 module.exports.haveTileForEvent = function(e) {
     // Only messages have a tile (black-rectangle) if redacted
     if (e.isRedacted() && !isMessageEvent(e)) return false;
+
+    // No tile for replacement events since they update the original tile
+    if (e.isRelation("m.replace")) return false;
 
     const handler = getHandlerTile(e);
     if (handler === undefined) return false;

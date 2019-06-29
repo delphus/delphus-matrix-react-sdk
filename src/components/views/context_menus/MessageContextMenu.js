@@ -27,6 +27,7 @@ import Modal from '../../../Modal';
 import Resend from '../../../Resend';
 import SettingsStore from '../../../settings/SettingsStore';
 import { isUrlPermitted } from '../../../HtmlUtils';
+import { isContentActionable } from '../../../utils/EventUtils';
 
 module.exports = React.createClass({
     displayName: 'MessageContextMenu',
@@ -118,19 +119,29 @@ module.exports = React.createClass({
     onRedactClick: function() {
         const ConfirmRedactDialog = sdk.getComponent("dialogs.ConfirmRedactDialog");
         Modal.createTrackedDialog('Confirm Redact Dialog', '', ConfirmRedactDialog, {
-            onFinished: (proceed) => {
+            onFinished: async (proceed) => {
                 if (!proceed) return;
 
                 const cli = MatrixClientPeg.get();
-                cli.redactEvent(this.props.mxEvent.getRoomId(), this.props.mxEvent.getId()).catch(function(e) {
-                    const ErrorDialog = sdk.getComponent("dialogs.ErrorDialog");
-                    // display error message stating you couldn't delete this.
+                try {
+                    await cli.redactEvent(
+                        this.props.mxEvent.getRoomId(),
+                        this.props.mxEvent.getId(),
+                    );
+                } catch (e) {
                     const code = e.errcode || e.statusCode;
-                    Modal.createTrackedDialog('You cannot delete this message', '', ErrorDialog, {
-                        title: _t('Error'),
-                        description: _t('You cannot delete this message. (%(code)s)', {code}),
-                    });
-                }).done();
+                    // only show the dialog if failing for something other than a network error
+                    // (e.g. no errcode or statusCode) as in that case the redactions end up in the
+                    // detached queue and we show the room status bar to allow retry
+                    if (typeof code !== "undefined") {
+                        const ErrorDialog = sdk.getComponent("dialogs.ErrorDialog");
+                        // display error message stating you couldn't delete this.
+                        Modal.createTrackedDialog('You cannot delete this message', '', ErrorDialog, {
+                            title: _t('Error'),
+                            description: _t('You cannot delete this message. (%(code)s)', {code}),
+                        });
+                    }
+                }
             },
         }, 'mx_Dialog_confirmredact');
         this.closeMenu();
@@ -247,22 +258,19 @@ module.exports = React.createClass({
             );
         }
 
-        if (isSent && mxEvent.getType() === 'm.room.message') {
-            const content = mxEvent.getContent();
-            if (content.msgtype && content.msgtype !== 'm.bad.encrypted' && content.hasOwnProperty('body')) {
-                forwardButton = (
-                    <div className="mx_MessageContextMenu_field" onClick={this.onForwardClick}>
-                        { _t('Forward Message') }
+        if (isContentActionable(mxEvent)) {
+            forwardButton = (
+                <div className="mx_MessageContextMenu_field" onClick={this.onForwardClick}>
+                    { _t('Forward Message') }
+                </div>
+            );
+
+            if (this.state.canPin) {
+                pinButton = (
+                    <div className="mx_MessageContextMenu_field" onClick={this.onPinClick}>
+                        { this._isPinned() ? _t('Unpin Message') : _t('Pin Message') }
                     </div>
                 );
-
-                if (this.state.canPin) {
-                    pinButton = (
-                        <div className="mx_MessageContextMenu_field" onClick={this.onPinClick}>
-                            { this._isPinned() ? _t('Unpin Message') : _t('Pin Message') }
-                        </div>
-                    );
-                }
             }
         }
 

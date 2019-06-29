@@ -2,6 +2,7 @@
 Copyright 2015, 2016 OpenMarket Ltd
 Copyright 2017 Vector Creations Ltd
 Copyright 2018, 2019 New Vector Ltd
+Copyright 2019 The Matrix.org Foundation C.I.C.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -40,7 +41,7 @@ import dis from '../../dispatcher';
 import Tinter from '../../Tinter';
 import rate_limited_func from '../../ratelimitedfunc';
 import ObjectUtils from '../../ObjectUtils';
-import Rooms from '../../Rooms';
+import * as Rooms from '../../Rooms';
 
 import { KeyCode, isOnlyCtrlOrCmdKeyEvent } from '../../Keyboard';
 
@@ -1551,6 +1552,8 @@ module.exports = React.createClass({
                             joining={this.state.joining}
                             inviterName={inviterName}
                             invitedEmail={invitedEmail}
+                            oobData={this.props.oobData}
+                            signUrl={this.props.thirdPartyInvite ? this.props.thirdPartyInvite.inviteSignUrl : null}
                             room={this.state.room}
                         />
                     </div>
@@ -1681,6 +1684,7 @@ module.exports = React.createClass({
                                 joining={this.state.joining}
                                 inviterName={inviterName}
                                 invitedEmail={invitedEmail}
+                                oobData={this.props.oobData}
                                 canPreview={this.state.canPeek}
                                 room={this.state.room}
                 />
@@ -1832,6 +1836,7 @@ module.exports = React.createClass({
                 membersLoaded={this.state.membersLoaded}
                 permalinkCreator={this._getPermalinkCreatorForRoom(this.state.room)}
                 resizeNotifier={this.props.resizeNotifier}
+                showReactions={true}
             />);
 
         let topUnreadMessagesBar = null;
