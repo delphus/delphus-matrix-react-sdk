@@ -31,6 +31,8 @@ import SettingsStore from '../../settings/SettingsStore';
 const CONTINUATION_MAX_INTERVAL = 5 * 60 * 1000; // 5 minutes
 const continuedTypes = ['m.sticker', 'm.room.message'];
 
+const isMembershipChange = (e) => e.getType() === 'm.room.member' || e.getType() === 'm.room.third_party_invite';
+
 /* (almost) stateless UI component which builds the event tiles in the room timeline.
  */
 module.exports = React.createClass({
@@ -108,6 +110,7 @@ module.exports = React.createClass({
     },
 
     componentWillMount: function() {
+        this._editingEnabled = SettingsStore.isFeatureEnabled("feature_message_editing");
         // the event after which we put a visible unread marker on the last
         // render cycle; null if readMarkerVisible was false or the RM was
         // suppressed (eg because it was at the end of the timeline)
@@ -374,8 +377,6 @@ module.exports = React.createClass({
             this._readReceiptsByEvent = this._getReadReceiptsByShownEvent();
         }
 
-        const isMembershipChange = (e) => e.getType() === 'm.room.member';
-
         for (i = 0; i < this.props.events.length; i++) {
             const mxEv = this.props.events[i];
             const eventId = mxEv.getId();
@@ -443,7 +444,7 @@ module.exports = React.createClass({
                     // In order to prevent DateSeparators from appearing in the expanded form
                     // of MemberEventListSummary, render each member event as if the previous
                     // one was itself. This way, the timestamp of the previous event === the
-                    // timestamp of the current event, and no DateSeperator is inserted.
+                    // timestamp of the current event, and no DateSeparator is inserted.
                     return this._getTilesForEvent(e, e, e === lastShownEvent);
                 }).reduce((a, b) => a.concat(b));
 
@@ -585,7 +586,7 @@ module.exports = React.createClass({
                 <EventTile mxEvent={mxEv}
                     continuation={continuation}
                     isRedacted={mxEv.isRedacted()}
-                    replacingEventId={mxEv.replacingEventId()}
+                    replacingEventId={this._editingEnabled && mxEv.replacingEventId()}
                     editState={isEditing && this.props.editState}
                     onHeightChanged={this._onHeightChanged}
                     readReceipts={readReceipts}

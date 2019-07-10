@@ -121,6 +121,9 @@ $event-sending-color: $text-secondary-color;
 $event-redacted-fg-color: #606060;
 $event-redacted-border-color: #000000;
 
+$event-highlight-fg-color: $warning-color;
+$event-highlight-bg-color: $event-selected-color;
+
 // event timestamp
 $event-timestamp-color: $text-secondary-color;
 
@@ -159,6 +162,9 @@ $reaction-row-button-selected-border-color: $accent-color;
 
 $tooltip-timeline-bg-color: $tagpanel-bg-color;
 $tooltip-timeline-fg-color: #ffffff;
+
+$interactive-tooltip-bg-color: $base-color;
+$interactive-tooltip-fg-color: #ffffff;
 
 // ***** Mixins! *****
 

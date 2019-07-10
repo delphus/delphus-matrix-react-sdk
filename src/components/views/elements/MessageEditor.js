@@ -31,6 +31,7 @@ import {renderModel} from '../../../editor/render';
 import EditorStateTransfer from '../../../utils/EditorStateTransfer';
 import {MatrixClient} from 'matrix-js-sdk';
 import classNames from 'classnames';
+import {EventStatus} from 'matrix-js-sdk';
 
 export default class MessageEditor extends React.Component {
     static propTypes = {
@@ -78,6 +79,14 @@ export default class MessageEditor extends React.Component {
         this.model.update(text, event.inputType, caret);
     }
 
+    _insertText(textToInsert, inputType = "insertText") {
+        const sel = document.getSelection();
+        const {caret, text} = getCaretOffsetAndText(this._editorRef, sel);
+        const newText = text.substr(0, caret.offset) + textToInsert + text.substr(caret.offset);
+        caret.offset += textToInsert.length;
+        this.model.update(newText, inputType, caret);
+    }
+
     _isCaretAtStart() {
         const {caret} = getCaretOffsetAndText(this._editorRef, document.getSelection());
         return caret.offset === 0;
@@ -92,7 +101,7 @@ export default class MessageEditor extends React.Component {
         // insert newline on Shift+Enter
         if (event.shiftKey && event.key === "Enter") {
             event.preventDefault(); // just in case the browser does support this
-            document.execCommand("insertHTML", undefined, "\n");
+            this._insertText("\n");
             return;
         }
         // autocomplete or enter to send below shouldn't have any modifier keys pressed.
@@ -187,10 +196,22 @@ export default class MessageEditor extends React.Component {
         }, contentBody);
 
         const roomId = this.props.editState.getEvent().getRoomId();
+        this._cancelPreviousPendingEdit();
         this.context.matrixClient.sendMessage(roomId, content);
 
         dis.dispatch({action: "edit_event", event: null});
         dis.dispatch({action: 'focus_composer'});
+    }
+
+    _cancelPreviousPendingEdit() {
+        const originalEvent = this.props.editState.getEvent();
+        const previousEdit = originalEvent.replacingEvent();
+        if (previousEdit && (
+            previousEdit.status === EventStatus.QUEUED ||
+            previousEdit.status === EventStatus.NOT_SENT
+        )) {
+            this.context.matrixClient.cancelPendingEvent(previousEdit);
+        }
     }
 
     _onAutoCompleteConfirm = (completion) => {
@@ -233,7 +254,7 @@ export default class MessageEditor extends React.Component {
             parts = editState.getSerializedParts().map(p => partCreator.deserializePart(p));
         } else {
             // otherwise, parse the body of the event
-            parts = parseEvent(editState.getEvent(), room, this.context.matrixClient);
+            parts = parseEvent(editState.getEvent(), partCreator);
         }
 
         return new EditorModel(
